@@ -51,7 +51,7 @@ impl Fragment {
 ///
 /// ```
 /// use tokio::net::TcpStream;
-/// use fastwebsockets::{WebSocket, FragmentCollector, OpCode, Role};
+/// use fastwebsockets_monoio::{WebSocket, FragmentCollector, OpCode, Role};
 /// use anyhow::Result;
 ///
 /// async fn handle_client(

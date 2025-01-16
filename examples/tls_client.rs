@@ -1,8 +1,8 @@
 use anyhow::Result;
-use fastwebsockets::Frame;
-use fastwebsockets::OpCode;
-use fastwebsockets::WebSocketError;
-use fastwebsockets::{self};
+use fastwebsockets_monoio::Frame;
+use fastwebsockets_monoio::OpCode;
+use fastwebsockets_monoio::WebSocketError;
+use fastwebsockets_monoio::{self};
 use hyper::Request;
 use hyper::Uri;
 use http_body_util::Empty;
@@ -74,14 +74,14 @@ async fn handle_websocket_upgrade(
     .header("Connection", "Upgrade")
     .header(
       "Sec-WebSocket-Key",
-      fastwebsockets::handshake::generate_key(),
+      fastwebsockets_monoio::handshake::generate_key(),
     )
     .header("Sec-WebSocket-Version", "13") // WebSocket 版本
     .body(Empty::<Bytes>::new())
     .expect("Failed to build request");
 
   let (mut ws, _) =
-    fastwebsockets::handshake::client(&HyperExecutor, req, tls_stream).await?;
+    fastwebsockets_monoio::handshake::client(&HyperExecutor, req, tls_stream).await?;
   println!("WebSocket handshake succeeded");
   loop {
     let msg = match ws.read_frame().await {

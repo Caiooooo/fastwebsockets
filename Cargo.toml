@@ -1,5 +1,5 @@
 [package]
-name = "fastwebsockets"
+name = "fastwebsockets-monoio"
 description = "A fast RFC6455 WebSocket server implementation"
 version = "0.10.0"
 authors = ["Divy Srivastava <dj.srivastava23@gmail.com>"]

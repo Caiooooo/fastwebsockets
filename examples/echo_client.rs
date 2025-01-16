@@ -1,8 +1,8 @@
 use bytes::Bytes;
-use fastwebsockets::Frame;
-use fastwebsockets::OpCode;
-use fastwebsockets::WebSocketError;
-use fastwebsockets::{self};
+use fastwebsockets_monoio::Frame;
+use fastwebsockets_monoio::OpCode;
+use fastwebsockets_monoio::WebSocketError;
+use fastwebsockets_monoio::{self};
 use http_body_util::Empty;
 use hyper::Request;
 use hyper::Uri;
@@ -26,14 +26,14 @@ async fn handle_websocket_upgrade(uri: Uri) -> Result<(), WebSocketError> {
     .body(Empty::<Bytes>::new())
     .expect("Failed to build request");
   let (mut ws, _) =
-    fastwebsockets::handshake::client(&HyperExecutor, req, conn).await?;
+    fastwebsockets_monoio::handshake::client(&HyperExecutor, req, conn).await?;
 
   for _ in 0..1000 {
-    let frame = fastwebsockets::Frame::new(
+    let frame = fastwebsockets_monoio::Frame::new(
       true, // fin
       OpCode::Text,
       None, // mask
-      fastwebsockets::Payload::from("hello".as_bytes().to_vec()),
+      fastwebsockets_monoio::Payload::from("hello".as_bytes().to_vec()),
     );
     ws.write_frame(frame).await?;
     let msg = match ws.read_frame().await {

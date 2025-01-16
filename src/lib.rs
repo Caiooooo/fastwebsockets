@@ -24,7 +24,7 @@
 //!
 //! ```
 //! use tokio::net::TcpStream;
-//! use fastwebsockets::{WebSocket, OpCode, Role};
+//! use fastwebsockets_monoio::{WebSocket, OpCode, Role};
 //! use anyhow::Result;
 //!
 //! async fn handle(
@@ -57,7 +57,7 @@
 //!
 //! For concanated frames, use `FragmentCollector`:
 //! ```
-//! use fastwebsockets::{FragmentCollector, WebSocket, Role};
+//! use fastwebsockets_monoio::{FragmentCollector, WebSocket, Role};
 //! use tokio::net::TcpStream;
 //! use anyhow::Result;
 //!
@@ -83,7 +83,7 @@
 //! This feature is powered by [hyper](https://docs.rs/hyper).
 //!
 //! ```
-//! use fastwebsockets::upgrade::upgrade;
+//! use fastwebsockets_monoio::upgrade::upgrade;
 //! use http_body_util::Empty;
 //! use hyper::{Request, body::{Incoming, Bytes}, Response};
 //! use anyhow::Result;
@@ -105,8 +105,8 @@
 //! Use the `handshake` module for client-side handshakes.
 //!
 //! ```
-//! use fastwebsockets::handshake;
-//! use fastwebsockets::FragmentCollector;
+//! use fastwebsockets_monoio::handshake;
+//! use fastwebsockets_monoio::FragmentCollector;
 //! use hyper::{Request, body::Bytes, upgrade::Upgraded, header::{UPGRADE, CONNECTION}};
 //! use http_body_util::Empty;
 //! use hyper_util::rt::TokioIo;
@@ -125,7 +125,7 @@
 //!     .header(CONNECTION, "upgrade")
 //!     .header(
 //!       "Sec-WebSocket-Key",
-//!       fastwebsockets::handshake::generate_key(),
+//!       fastwebsockets_monoio::handshake::generate_key(),
 //!     )
 //!     .header("Sec-WebSocket-Version", "13")
 //!     .body(Empty::<Bytes>::new())?;
@@ -375,7 +375,7 @@ impl<'f, S> WebSocket<S> {
   ///
   /// ```
   /// use tokio::net::TcpStream;
-  /// use fastwebsockets::{WebSocket, OpCode, Role};
+  /// use fastwebsockets_monoio::{WebSocket, OpCode, Role};
   /// use anyhow::Result;
   ///
   /// async fn handle_client(
@@ -487,7 +487,7 @@ impl<'f, S> WebSocket<S> {
   /// # Example
   ///
   /// ```
-  /// use fastwebsockets::{WebSocket, Frame, OpCode};
+  /// use fastwebsockets_monoio::{WebSocket, Frame, OpCode};
   /// use tokio::net::TcpStream;
   /// use anyhow::Result;
   ///
@@ -531,7 +531,7 @@ impl<'f, S> WebSocket<S> {
   /// # Example
   ///
   /// ```
-  /// use fastwebsockets::{OpCode, WebSocket, Frame};
+  /// use fastwebsockets_monoio::{OpCode, WebSocket, Frame};
   /// use tokio::net::TcpStream;
   /// use anyhow::Result;
   ///

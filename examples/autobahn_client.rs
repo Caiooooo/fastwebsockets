@@ -16,9 +16,9 @@ use std::future::Future;
 
 use anyhow::Result;
 use bytes::Bytes;
-use fastwebsockets::FragmentCollector;
-use fastwebsockets::Frame;
-use fastwebsockets::OpCode;
+use fastwebsockets_monoio::FragmentCollector;
+use fastwebsockets_monoio::Frame;
+use fastwebsockets_monoio::OpCode;
 use http_body_util::Empty;
 use hyper::header::CONNECTION;
 use hyper::header::UPGRADE;
@@ -50,13 +50,13 @@ async fn connect(path: &str) -> Result<FragmentCollector<hyper_util::rt::tokio::
     .header(CONNECTION, "upgrade")
     .header(
       "Sec-WebSocket-Key",
-      fastwebsockets::handshake::generate_key(),
+      fastwebsockets_monoio::handshake::generate_key(),
     )
     .header("Sec-WebSocket-Version", "13")
     .body(Empty::<Bytes>::new())?;
 
   let (ws, _) =
-    fastwebsockets::handshake::client(&SpawnExecutor, req, stream).await?;
+    fastwebsockets_monoio::handshake::client(&SpawnExecutor, req, stream).await?;
   Ok(FragmentCollector::new(ws))
 }
 

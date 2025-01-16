@@ -11,9 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use fastwebsockets::upgrade;
-use fastwebsockets::OpCode;
-use fastwebsockets::WebSocketError;
+use fastwebsockets_monoio::upgrade;
+use fastwebsockets_monoio::OpCode;
+use fastwebsockets_monoio::WebSocketError;
 use hyper::body::Incoming;
 use hyper::service::service_fn;
 use hyper::Request;
@@ -30,7 +30,7 @@ use std::sync::Arc;
 use monoio::io::IntoPollIo;
 
 async fn handle_client(fut: upgrade::UpgradeFut) -> Result<(), WebSocketError> {
-  let mut ws = fastwebsockets::FragmentCollector::new(fut.await?);
+  let mut ws = fastwebsockets_monoio::FragmentCollector::new(fut.await?);
 
   loop {
     let frame = ws.read_frame().await?;

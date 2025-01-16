@@ -40,8 +40,8 @@ use crate::WebSocketError;
 /// # Example
 ///
 /// ```
-/// use fastwebsockets::handshake;
-/// use fastwebsockets::WebSocket;
+/// use fastwebsockets_monoio::handshake;
+/// use fastwebsockets_monoio::WebSocket;
 /// use hyper::{Request, body::Bytes, upgrade::Upgraded, header::{UPGRADE, CONNECTION}};
 /// use hyper_util::rt::TokioIo;
 /// use http_body_util::Empty;
@@ -60,7 +60,7 @@ use crate::WebSocketError;
 ///     .header(CONNECTION, "upgrade")
 ///     .header(
 ///       "Sec-WebSocket-Key",
-///       fastwebsockets::handshake::generate_key(),
+///       fastwebsockets_monoio::handshake::generate_key(),
 ///     )
 ///     .header("Sec-WebSocket-Version", "13")
 ///     .body(Empty::<Bytes>::new())?;

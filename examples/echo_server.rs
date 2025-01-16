@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use bytes::Bytes;
-use fastwebsockets::upgrade;
-use fastwebsockets::OpCode;
-use fastwebsockets::WebSocketError;
+use fastwebsockets_monoio::upgrade;
+use fastwebsockets_monoio::OpCode;
+use fastwebsockets_monoio::WebSocketError;
 use http_body_util::Empty;
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
@@ -25,7 +25,7 @@ use hyper::Response;
 use monoio::io::IntoPollIo;
 
 async fn handle_client(fut: upgrade::UpgradeFut) -> Result<(), WebSocketError> {
-  let mut ws = fastwebsockets::FragmentCollector::new(fut.await?);
+  let mut ws = fastwebsockets_monoio::FragmentCollector::new(fut.await?);
 
   loop {
     let frame = ws.read_frame().await?;
@@ -116,7 +116,6 @@ impl tokio::io::AsyncWrite for HyperConnection {
     Pin::new(&mut self.0).poll_shutdown(cx)
   }
 }
-
 
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for HyperConnection {}
