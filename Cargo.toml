@@ -22,6 +22,21 @@ name = "tls_client"
 path = "examples/tls_client.rs"
 required-features = ["upgrade"]
 
+[[example]]
+name = "monoio_server"
+path = "examples/monoio_server.rs"
+required-features = ["upgrade"]
+
+[[example]]
+name = "monoio_client"
+path = "examples/monoio_client.rs"
+required-features = ["upgrade"]
+
+[[example]]
+name = "monoio_tls_server"
+path = "examples/monoio_tls_server.rs"
+required-features = ["upgrade"]
+
 [dependencies]
 tokio = { version = "1.25.0",  default-features = false, features = ["io-util"] }
 simdutf8 = { version = "0.1.4", optional = true }
@@ -48,8 +63,10 @@ trybuild = "1.0.80"
 criterion = "0.4.0"
 anyhow = "1.0.71"
 webpki-roots = "0.23.0"
-monoio = { version = "*",  default-features = false, features = ["async-cancel", "sync", "bytes", "legacy", "macros", "utils", "tokio-compat"] }
+monoio = { version = "0.2.0",  default-features = false, features = ["async-cancel", "sync", "bytes", "legacy", "macros", "utils", "tokio-compat"] }
 monoio-compat = { version = "0.1.2" }
+monoio-rustls = "0.1.0"
+rcgen = "0.11.0"
 
 [[bench]]
 name = "unmask"

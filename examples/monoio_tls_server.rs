@@ -23,7 +23,9 @@ use hyper::Response;
 use monoio_compat::AsyncReadExt;
 use monoio_compat::AsyncWriteExt;
 use monoio_compat::TcpStreamCompat;
-use tokio::net::TcpListener;
+use monoio_rustls::TlsAcceptor;
+use rustls::ServerConfig;
+use std::sync::Arc;
 
 async fn handle_client(fut: upgrade::UpgradeFut) -> Result<(), WebSocketError> {
   let mut ws = fastwebsockets::FragmentCollector::new(fut.await?);
@@ -81,9 +83,24 @@ async fn server_upgrade(
   Ok(response)
 }
 
+fn tls_config() -> Result<Arc<ServerConfig>, WebSocketError> {
+  let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+  let key = rustls::PrivateKey(cert.serialize_private_key_der());
+  let cert = rustls::Certificate(cert.serialize_der().unwrap());
+
+  let mut config = ServerConfig::builder()
+    .with_safe_defaults()
+    .with_no_client_auth()
+    .with_single_cert(vec![cert], key)
+    .map_err(|e| WebSocketError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+
+  config.alpn_protocols = vec![b"http/1.1".to_vec()];
+  Ok(Arc::new(config))
+}
+
 #[monoio::main]
 async fn main() -> Result<(), WebSocketError> {
-  let addr = "127.0.0.1:8080";
+  let addr = "127.0.0.1:8443";
   let listener = match monoio::net::TcpListener::bind(addr) {
     Ok(listener) => listener,
     Err(e) => {
@@ -91,6 +108,9 @@ async fn main() -> Result<(), WebSocketError> {
       return Err(WebSocketError::IoError(e));
     }
   };
+
+  let tls_config = tls_config()?;
+  let acceptor = TlsAcceptor::from(tls_config);
 
   println!("Server started, listening on {}", addr);
   loop {
@@ -103,9 +123,20 @@ async fn main() -> Result<(), WebSocketError> {
     };
 
     println!("New client connected from {}", addr);
-    let hyper_conn = HyperConnection(stream);
+    let acceptor = acceptor.clone();
     
     monoio::spawn(async move {
+      let stream = match acceptor.accept(stream).await {
+        Ok(stream) => stream,
+        Err(e) => {
+          eprintln!("TLS handshake failed: {}", e);
+          return;
+        }
+      };
+
+      let stream = TcpStreamCompat::new(stream);
+      let hyper_conn = HyperConnection(stream);
+      
       let conn_fut = Http::new()
         .with_executor(HyperExecutor)
         .serve_connection(hyper_conn, service_fn(server_upgrade))
@@ -119,7 +150,7 @@ async fn main() -> Result<(), WebSocketError> {
 }
 
 use std::pin::Pin;
-struct HyperConnection(monoio::net::TcpStream);
+struct HyperConnection(monoio_compat::TcpStreamCompat<monoio_rustls::TlsStream<monoio::net::TcpStream>>);
 
 impl tokio::io::AsyncRead for HyperConnection {
   #[inline]
@@ -181,4 +212,4 @@ where
   fn execute(&self, fut: F) {
     monoio::spawn(fut);
   }
-}
+} 
