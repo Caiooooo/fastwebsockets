@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use anyhow::Result;
-use fastwebsockets_monoio::upgrade;
-use fastwebsockets_monoio::Frame;
-use fastwebsockets_monoio::OpCode;
+use fastwebsockets::upgrade;
+use fastwebsockets::Frame;
+use fastwebsockets::OpCode;
 use http_body_util::Empty;
 use hyper::body::Bytes;
 use hyper::body::Incoming;
@@ -24,15 +24,19 @@ use hyper::service::service_fn;
 use hyper::Request;
 use hyper::Response;
 use hyper_util::rt::TokioIo;
-use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 
-use fastwebsockets_monoio::handshake;
-use fastwebsockets_monoio::WebSocket;
+use fastwebsockets::handshake;
+use fastwebsockets::WebSocketRead;
+use fastwebsockets::WebSocketWrite;
 use hyper::header::CONNECTION;
 use hyper::header::UPGRADE;
 use hyper::upgrade::Upgraded;
+use tokio::sync::Mutex;
+
 use std::future::Future;
+use std::rc::Rc;
+
 use tokio::net::TcpStream;
 
 const N_CLIENTS: usize = 20;
@@ -43,7 +47,7 @@ async fn handle_client(
 ) -> Result<()> {
   let mut ws = fut.await?;
   ws.set_writev(false);
-  let mut ws = fastwebsockets_monoio::FragmentCollector::new(ws);
+  let mut ws = fastwebsockets::FragmentCollector::new(ws);
 
   ws.write_frame(Frame::binary(client_id.to_ne_bytes().as_ref().into()))
     .await
@@ -52,9 +56,6 @@ async fn handle_client(
   Ok(())
 }
 
-async fn server_upgrade(
-  mut req: Request<Incoming>,
-) -> Result<Response<Empty<Bytes>>> {
 async fn server_upgrade(
   mut req: Request<Incoming>,
 ) -> Result<Response<Empty<Bytes>>> {
@@ -75,8 +76,12 @@ async fn server_upgrade(
   Ok(response)
 }
 
-async fn connect(client_id: usize) -> Result<WebSocket<TokioIo<Upgraded>>> {
-async fn connect(client_id: usize) -> Result<WebSocket<TokioIo<Upgraded>>> {
+async fn connect(
+  client_id: usize,
+) -> Result<(
+  WebSocketRead<tokio::io::ReadHalf<TokioIo<Upgraded>>>,
+  WebSocketWrite<tokio::io::WriteHalf<TokioIo<Upgraded>>>,
+)> {
   let stream = TcpStream::connect("localhost:8080").await?;
 
   let req = Request::builder()
@@ -88,19 +93,24 @@ async fn connect(client_id: usize) -> Result<WebSocket<TokioIo<Upgraded>>> {
     .header("CLIENT-ID", &format!("{}", client_id))
     .header(
       "Sec-WebSocket-Key",
-      fastwebsockets_monoio::handshake::generate_key(),
+      fastwebsockets::handshake::generate_key(),
     )
     .header("Sec-WebSocket-Version", "13")
     .body(Empty::<Bytes>::new())?;
-    .body(Empty::<Bytes>::new())?;
 
   let (ws, _) = handshake::client(&SpawnExecutor, req, stream).await?;
-  Ok(ws)
+  Ok(ws.split(tokio::io::split))
 }
 
 async fn start_client(client_id: usize) -> Result<()> {
-  let mut ws = connect(client_id).await.unwrap();
-  let frame = ws.read_frame().await?;
+  let (mut r, w) = connect(client_id).await.unwrap();
+  let w = Rc::new(Mutex::new(w));
+  let frame = r
+    .read_frame(&mut move |frame| {
+      let w = w.clone();
+      async move { w.lock().await.write_frame(frame).await }
+    })
+    .await?;
   match frame.opcode {
     OpCode::Close => {}
     OpCode::Binary => {
@@ -117,14 +127,11 @@ async fn start_client(client_id: usize) -> Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn test() -> Result<()> {
   let listener = TcpListener::bind("127.0.0.1:8080").await?;
-  println!("Server started, listening on 127.0.0.1:8080");
+  println!("Server started, listening on {}", "127.0.0.1:8080");
   tokio::spawn(async move {
     loop {
       let (stream, _) = listener.accept().await.unwrap();
       tokio::spawn(async move {
-        let io = TokioIo::new(stream);
-        let conn_fut = http1::Builder::new()
-          .serve_connection(io, service_fn(server_upgrade))
         let io = TokioIo::new(stream);
         let conn_fut = http1::Builder::new()
           .serve_connection(io, service_fn(server_upgrade))
@@ -135,10 +142,10 @@ async fn test() -> Result<()> {
   });
   let mut tasks = Vec::with_capacity(N_CLIENTS);
   for client in 0..N_CLIENTS {
-    tasks.push(tokio::spawn(start_client(client)));
+    tasks.push(start_client(client));
   }
   for handle in tasks {
-    handle.await.unwrap().unwrap();
+    handle.await.unwrap();
   }
   Ok(())
 }

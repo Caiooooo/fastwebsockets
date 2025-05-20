@@ -8,7 +8,7 @@ pub enum WebSocketError {
   InvalidUTF8,
   #[error("Invalid continuation frame")]
   InvalidContinuationFrame,
-  #[error("Invalid status code")]
+  #[error("Invalid status code: {0}")]
   InvalidStatusCode(u16),
   #[error("Invalid upgrade header")]
   InvalidUpgradeHeader,
@@ -41,4 +41,7 @@ pub enum WebSocketError {
   #[cfg(feature = "upgrade")]
   #[error(transparent)]
   HTTPError(#[from] hyper::Error),
+  #[cfg(feature = "unstable-split")]
+  #[error("Failed to send frame")]
+  SendError(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
 }

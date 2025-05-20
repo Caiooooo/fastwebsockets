@@ -2,6 +2,7 @@
 name = "fastwebsockets-monoio"
 description = "A fast RFC6455 WebSocket server implementation"
 version = "0.10.0"
+version = "0.10.0"
 authors = ["Divy Srivastava <dj.srivastava23@gmail.com>"]
 license = "Apache-2.0"
 edition = "2021"
@@ -28,13 +29,18 @@ path = "examples/tls_client.rs"
 required-features = ["upgrade"]
 
 [[example]]
-name = "tls_client_binance"
-path = "examples/tls_client_binance.rs"
+name = "tls_server"
+path = "examples/tls_server.rs"
 required-features = ["upgrade"]
 
 [[example]]
-name = "tls_server"
-path = "examples/tls_server.rs"
+name = "axum"
+path = "examples/axum.rs"
+required-features = ["upgrade", "with_axum"]
+
+[[example]]
+name = "echo_server_split"
+path = "examples/echo_server_split.rs"
 required-features = ["upgrade"]
 
 [dependencies]
@@ -42,7 +48,7 @@ tokio = { version = "1.43.0",  default-features = false, features = ["io-util"] 
 simdutf8 = { version = "0.1.4", optional = true }
 hyper = { version = "1.5.2", features = ["http1", "server", "client"], optional = true }
 pin-project = { version = "1.0.8", optional = true }
-base64 = { version = "0.21.0", optional = true }
+base64 = { version = "0.22.0", optional = true }
 sha1 = { version = "0.10.5", optional = true }
 utf-8 = "0.7.5"
 rand = "0.8.4"
@@ -96,4 +102,4 @@ lto = true
 codegen-units = 1
 
 [package.metadata.docs.rs]
-features = ["upgrade"]
+features = ["upgrade", "with_axum"]

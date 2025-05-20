@@ -3,12 +3,17 @@
 use http_body_util::Empty;
 use hyper::body::Bytes;
 use hyper::body::Incoming;
+use http_body_util::Empty;
+use hyper::body::Bytes;
+use hyper::body::Incoming;
 use hyper::header::CONNECTION;
 use hyper::header::UPGRADE;
+use hyper::server::conn::http1;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::Request;
 use hyper::Response;
+use hyper_util::rt::TokioIo;
 use hyper_util::rt::TokioIo;
 use std::future::Future;
 use std::net::Ipv6Addr;
@@ -35,11 +40,27 @@ async fn hyper() {
   let_assert!(
     Ok(listener) =
       tokio::net::TcpListener::bind((Ipv6Addr::LOCALHOST, 0u16)).await
+    Ok(listener) =
+      tokio::net::TcpListener::bind((Ipv6Addr::LOCALHOST, 0u16)).await
   );
   let_assert!(Ok(bind_addr) = listener.local_addr());
 
   // Spawn the server in a task.
   tokio::spawn(async move {
+    loop {
+      let (stream, _) = listener.accept().await.unwrap();
+      let io = TokioIo::new(stream);
+
+      tokio::spawn(async move {
+        if let Err(err) = http1::Builder::new()
+          .serve_connection(io, service_fn(upgrade_websocket))
+          .with_upgrades()
+          .await
+        {
+          println!("Error serving connection: {:?}", err);
+        }
+      });
+    }
     loop {
       let (stream, _) = listener.accept().await.unwrap();
       let io = TokioIo::new(stream);
@@ -70,6 +91,7 @@ async fn hyper() {
         fastwebsockets_monoio::handshake::generate_key(),
       )
       .header("Sec-WebSocket-Version", "13")
+      .body(Empty::<Bytes>::new())
       .body(Empty::<Bytes>::new())
   );
   let_assert!(Ok((mut stream, _response)) = fastwebsockets_monoio::handshake::client(&TestExecutor, req, stream).await);

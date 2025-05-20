@@ -43,6 +43,8 @@ async fn handle_client(fut: upgrade::UpgradeFut) -> Result<(), WebSocketError> {
 async fn server_upgrade(
   mut req: Request<Incoming>,
 ) -> Result<Response<Empty<Bytes>>, WebSocketError> {
+  mut req: Request<Incoming>,
+) -> Result<Response<Empty<Bytes>>, WebSocketError> {
   let (response, fut) = upgrade::upgrade(&mut req)?;
 
   monoio::spawn(async move {

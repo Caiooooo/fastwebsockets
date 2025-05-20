@@ -76,8 +76,8 @@ use http_body_util::Empty;
 use anyhow::Result;
 
 async fn server_upgrade(
-  mut req: Request<Body>,
-) -> Result<Response<Body>> {
+  mut req: Request<Incoming>,
+) -> Result<Response<Empty<Bytes>>> {
   let (response, fut) = upgrade::upgrade(&mut req)?;
 
   monoio::spawn(async move {
@@ -93,16 +93,10 @@ async fn server_upgrade(
 Use the `handshake` module for client-side handshakes.
 
 ```rust
-use anyhow::Result;
-use fastwebsockets_monoio::Frame;
-use fastwebsockets_monoio::OpCode;
-use fastwebsockets_monoio::WebSocketError;
-use fastwebsockets_monoio::{self};
-use hyper::Request;
-use hyper::Uri;
-use http_body_util::Empty;
-use hyper::body::Bytes;
-use monoio::net::TcpStream;
+use fastwebsockets::handshake;
+use fastwebsockets::WebSocket;
+use hyper::{Request, Body, upgrade::Upgraded, header::{UPGRADE, CONNECTION}};
+use tokio::net::TcpStream;
 use std::future::Future;
 use std::sync::Arc;
 use tokio_rustls::rustls::ClientConfig;
@@ -169,9 +163,8 @@ async fn handle_websocket_upgrade(
       "Sec-WebSocket-Key",
       fastwebsockets_monoio::handshake::generate_key(),
     )
-    .header("Sec-WebSocket-Version", "13") // WebSocket 版本
-    .body(Empty::<Bytes>::new())
-    .expect("Failed to build request");
+    .header("Sec-WebSocket-Version", "13")
+    .body(Body::empty())?;
 
   let (mut ws, _) =
     fastwebsockets_monoio::handshake::client(&HyperExecutor, req, tls_stream).await?;
@@ -264,3 +257,53 @@ impl tokio::io::AsyncWrite for HyperConnection {
 
 unsafe impl Send for HyperConnection {}
 ```
+
+**Usage with Axum**
+
+Enable the Axum integration with `features = ["upgrade", "with_axum"]` in Cargo.toml.
+
+```rust
+use axum::{response::IntoResponse, routing::get, Router};
+use fastwebsockets::upgrade;
+use fastwebsockets::OpCode;
+use fastwebsockets::WebSocketError;
+
+#[tokio::main]
+async fn main() {
+  let app = Router::new().route("/", get(ws_handler));
+
+  let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+  axum::serve(listener, app).await.unwrap();
+}
+
+async fn handle_client(fut: upgrade::UpgradeFut) -> Result<(), WebSocketError> {
+  let mut ws = fastwebsockets::FragmentCollector::new(fut.await?);
+
+  loop {
+    let frame = ws.read_frame().await?;
+    match frame.opcode {
+      OpCode::Close => break,
+      OpCode::Text | OpCode::Binary => {
+        ws.write_frame(frame).await?;
+      }
+      _ => {}
+    }
+  }
+
+  Ok(())
+}
+
+async fn ws_handler(ws: upgrade::IncomingUpgrade) -> impl IntoResponse {
+  let (response, fut) = ws.upgrade().unwrap();
+
+  tokio::task::spawn(async move {
+    if let Err(e) = handle_client(fut).await {
+      eprintln!("Error in websocket connection: {}", e);
+    }
+  });
+
+  response
+}
+```
+
+

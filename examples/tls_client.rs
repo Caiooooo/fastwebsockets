@@ -24,8 +24,8 @@ fn tls_connector() -> Result<TlsConnector> {
     .map(|mut certs| certs.drain(..).map(Certificate).collect())
     .unwrap();
 
-  root_store.add_server_trust_anchors(
-    webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|ta| {
+  root_store.add_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.0.iter().map(
+    |ta| {
       OwnedTrustAnchor::from_subject_spki_name_constraints(
         ta.subject,
         ta.spki,
