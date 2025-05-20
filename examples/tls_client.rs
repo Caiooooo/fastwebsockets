@@ -55,14 +55,12 @@ async fn handle_websocket_upgrade(
   let addr = format!("{}:{}", host, port);
   let stream = TcpStream::connect(&addr).await?;
   let tcp_stream = HyperConnection(stream.into_poll_io()?);
-  println!("Connected to: {:?}", addr);
   let domain =
     tokio_rustls::rustls::ServerName::try_from(uri.to_string().as_str())
       .map_err(|_| {
         std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid dnsname")
       })?;
 
-  println!("Domin found: {:?}", domain);
   let tls_connector = tls_connector().unwrap();
   let tls_stream = tls_connector.connect(domain, tcp_stream).await.unwrap();
 
@@ -82,7 +80,6 @@ async fn handle_websocket_upgrade(
 
   let (mut ws, _) =
     fastwebsockets_monoio::handshake::client(&HyperExecutor, req, tls_stream).await?;
-  println!("WebSocket handshake succeeded");
   loop {
     let msg = match ws.read_frame().await {
       Ok(msg) => msg,

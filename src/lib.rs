@@ -700,6 +700,7 @@ impl ReadHalf {
       eof!(stream.read_buf(&mut self.buffer).await?);
     }
 
+    #[allow(unexpected_cfgs)]
     let payload_len: usize = match extra {
       0 => usize::from(length_code),
       2 => self.buffer.get_u16() as usize,
