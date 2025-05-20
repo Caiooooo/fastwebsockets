@@ -1,98 +1,3 @@
-[![Crates.io](https://img.shields.io/crates/v/fastwebsockets-monoio.svg)](https://crates.io/crates/fastwebsockets-monoio)
-
-[Documentation](https://docs.rs/fastwebsockets-monoio) | [Benchmarks](benches/)
-
-_fastwebsockets-monoio_ is a fast WebSocket protocol implementation based on the Monoio runtime.
-
-Passes the
-Autobahn|TestSuite<sup><a href="https://denoland.github.io/fastwebsockets/servers/">1</a></sup>
-and fuzzed with LLVM's libfuzzer.
-
-You can use it as a raw websocket frame parser and deal with spec compliance
-yourself, or you can use it as a full-fledged websocket client/server.
-
-```rust
-use fastwebsockets_monoio::{Frame, OpCode, WebSocket};
-use monoio::net::TcpStream;
-
-async fn handle_client(
-  mut socket: TcpStream,
-) -> Result<(), WebSocketError> {
-  handshake(&mut socket).await?;
-
-  let mut ws = WebSocket::after_handshake(socket);
-  ws.set_writev(true);
-  ws.set_auto_close(true);
-  ws.set_auto_pong(true);
-
-  loop {
-    let frame = ws.read_frame().await?;
-
-    match frame.opcode {
-      OpCode::Close => break,
-      OpCode::Text | OpCode::Binary => {
-        let frame = Frame::new(true, frame.opcode, None, frame.payload);
-        ws.write_frame(frame).await?;
-      }
-      _ => {}
-    }
-  }
-
-  Ok(())
-}
-```
-
-**Fragmentation**
-
-By default, fastwebsockets will give the application raw frames with FIN set.
-Other crates like tungstenite which will give you a single message with all the
-frames concatenated.
-
-For concanated frames, use `FragmentCollector`:
-
-```rust
-let mut ws = WebSocket::after_handshake(socket);
-let mut ws = FragmentCollector::new(ws);
-
-let incoming = ws.read_frame().await?;
-// Always returns full messages
-assert!(incoming.fin);
-```
-
-> permessage-deflate is not supported yet.
-
-**HTTP Upgrade**
-
-Enable the `upgrade` feature to do server-side upgrades and client-side
-handshakes.
-
-This feature is powered by [hyper](https://docs.rs/hyper).
-
-```rust
-use fastwebsockets_monoio::upgrade::upgrade;
-use hyper::{Request, Body, Response};
-use bytes::Bytes;
-use http_body_util::Empty;
-use anyhow::Result;
-
-async fn server_upgrade(
-  mut req: Request<Body>,
-) -> Result<Response<Body>> {
-  let (response, fut) = upgrade::upgrade(&mut req)?;
-
-  monoio::spawn(async move {
-    if let Err(e) = handle_client(fut).await {
-      eprintln!("Error in websocket connection: {}", e);
-    }
-  });
-
-  Ok(response)
-}
-```
-
-Use the `handshake` module for client-side handshakes.
-
-```rust
 use anyhow::Result;
 use fastwebsockets_monoio::Frame;
 use fastwebsockets_monoio::OpCode;
@@ -100,24 +5,19 @@ use fastwebsockets_monoio::WebSocketError;
 use fastwebsockets_monoio::{self};
 use hyper::Request;
 use hyper::Uri;
-use http_body_util::Empty;
-use hyper::body::Bytes;
 use monoio::net::TcpStream;
 use std::future::Future;
 use std::sync::Arc;
 use tokio_rustls::rustls::ClientConfig;
 use tokio_rustls::rustls::OwnedTrustAnchor;
-use tokio_rustls::rustls::Certificate;
 use tokio_rustls::TlsConnector;
 use monoio::io::IntoPollIo;
+use bytes::Bytes;
+use http_body_util::Empty;
 
 #[allow(deprecated)]
 fn tls_connector() -> Result<TlsConnector> {
-  static CERT: &[u8] = include_bytes!("./localhost.crt");
   let mut root_store = tokio_rustls::rustls::RootCertStore::empty();
-  let local_certs: Vec<Certificate> = rustls_pemfile::certs(&mut &*CERT)
-    .map(|mut certs| certs.drain(..).map(Certificate).collect())
-    .unwrap();
 
   root_store.add_server_trust_anchors(
     webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|ta| {
@@ -128,10 +28,7 @@ fn tls_connector() -> Result<TlsConnector> {
       )
     }),
   );
-  for cert in local_certs {
-      root_store.add(&cert)?;
-  }
-  
+
   let config = ClientConfig::builder()
     .with_safe_defaults()
     .with_root_certificates(root_store)
@@ -150,18 +47,20 @@ async fn handle_websocket_upgrade(
   let addr = format!("{}:{}", host, port);
   let stream = TcpStream::connect(&addr).await?;
   let tcp_stream = HyperConnection(stream.into_poll_io()?);
+  println!("Connected to: {:?}", addr);
   let domain =
     tokio_rustls::rustls::ServerName::try_from(uri.to_string().as_str())
       .map_err(|_| {
         std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid dnsname")
       })?;
 
+  println!("Domin found: {:?}", domain);
   let tls_connector = tls_connector().unwrap();
   let tls_stream = tls_connector.connect(domain, tcp_stream).await.unwrap();
 
   let req = Request::builder()
     .method("GET")
-    .uri(&addr)
+    .uri(format!("wss://{}/ws/btcusdt@bookTicker", &addr))
     .header("Host", &addr)
     .header("Upgrade", "websocket")
     .header("Connection", "Upgrade")
@@ -175,6 +74,7 @@ async fn handle_websocket_upgrade(
 
   let (mut ws, _) =
     fastwebsockets_monoio::handshake::client(&HyperExecutor, req, tls_stream).await?;
+  println!("WebSocket handshake succeeded");
   loop {
     let msg = match ws.read_frame().await {
       Ok(msg) => msg,
@@ -203,8 +103,9 @@ async fn handle_websocket_upgrade(
 
 #[monoio::main]
 async fn main() {
-  let uri: Uri = "127.0.0.1".parse::<hyper::Uri>().unwrap();
-  let port = 8080;
+  // !!!!! do not use proxychains or other proxy tools, the tcp steam connect may be failed !!!!
+  let uri: Uri = "data-stream.binance.com".parse::<hyper::Uri>().unwrap();
+  let port = 9443;
   handle_websocket_upgrade(uri, port).await.unwrap();
 }
 
@@ -262,5 +163,5 @@ impl tokio::io::AsyncWrite for HyperConnection {
   }
 }
 
+
 unsafe impl Send for HyperConnection {}
-```
