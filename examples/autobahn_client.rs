@@ -54,7 +54,6 @@ async fn connect(path: &str) -> Result<FragmentCollector<hyper_util::rt::tokio::
     )
     .header("Sec-WebSocket-Version", "13")
     .body(Empty::<Bytes>::new())?;
-    .body(Empty::<Bytes>::new())?;
 
   let (ws, _) =
     fastwebsockets_monoio::handshake::client(&SpawnExecutor, req, stream).await?;

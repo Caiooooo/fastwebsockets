@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use anyhow::Result;
-use fastwebsockets::upgrade;
-use fastwebsockets::Frame;
-use fastwebsockets::OpCode;
+use fastwebsockets_monoio::upgrade;
+use fastwebsockets_monoio::Frame;
+use fastwebsockets_monoio::OpCode;
 use http_body_util::Empty;
 use hyper::body::Bytes;
 use hyper::body::Incoming;
@@ -26,9 +26,10 @@ use hyper::Response;
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 
-use fastwebsockets::handshake;
-use fastwebsockets::WebSocketRead;
-use fastwebsockets::WebSocketWrite;
+use fastwebsockets_monoio::handshake;
+use fastwebsockets_monoio::WebSocket;
+use fastwebsockets_monoio::WebSocketRead;
+use fastwebsockets_monoio::WebSocketWrite;
 use hyper::header::CONNECTION;
 use hyper::header::UPGRADE;
 use hyper::upgrade::Upgraded;
@@ -47,7 +48,7 @@ async fn handle_client(
 ) -> Result<()> {
   let mut ws = fut.await?;
   ws.set_writev(false);
-  let mut ws = fastwebsockets::FragmentCollector::new(ws);
+  let mut ws = fastwebsockets_monoio::FragmentCollector::new(ws);
 
   ws.write_frame(Frame::binary(client_id.to_ne_bytes().as_ref().into()))
     .await
@@ -93,7 +94,7 @@ async fn connect(
     .header("CLIENT-ID", &format!("{}", client_id))
     .header(
       "Sec-WebSocket-Key",
-      fastwebsockets::handshake::generate_key(),
+      fastwebsockets_monoio::handshake::generate_key(),
     )
     .header("Sec-WebSocket-Version", "13")
     .body(Empty::<Bytes>::new())?;

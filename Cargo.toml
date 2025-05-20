@@ -2,7 +2,6 @@
 name = "fastwebsockets-monoio"
 description = "A fast RFC6455 WebSocket server implementation"
 version = "0.10.0"
-version = "0.10.0"
 authors = ["Divy Srivastava <dj.srivastava23@gmail.com>"]
 license = "Apache-2.0"
 edition = "2021"
@@ -38,10 +37,6 @@ name = "axum"
 path = "examples/axum.rs"
 required-features = ["upgrade", "with_axum"]
 
-[[example]]
-name = "echo_server_split"
-path = "examples/echo_server_split.rs"
-required-features = ["upgrade"]
 
 [dependencies]
 tokio = { version = "1.43.0",  default-features = false, features = ["io-util"] }
@@ -58,15 +53,21 @@ hyper-util = { version = "0.1.10", features = ["tokio"]}
 http-body-util = "0.1.2"
 bytes = "1.9.0"
 
+# Axum integration
+axum-core = { version = "0.5.0", optional = true }
+http = { version = "1", optional = true }
+async-trait = { version = "0.1", optional = true }
+
 [features]
 default = ["simd", "upgrade"]
 simd = ["simdutf8/aarch64_neon"]
 upgrade = ["hyper", "pin-project", "base64", "sha1"]
 unstable-split = []
 # Axum integration
+with_axum = ["axum-core", "http", "async-trait"]
 
 [dev-dependencies]
-tokio = { version = "1.42.0", features = ["full", "macros"] }
+tokio = { version = "1.45.0", features = ["full", "macros"] }
 tokio-rustls = "0.24.0"
 rustls-pemfile = "1.0"
 hyper = { version = "1.0", features = ["http1", "server", "client"] }
@@ -86,6 +87,22 @@ monoio = { version = "0.2.4", default-features = false, features = [
     "poll-io",      # experimental
 ] }
 monoio-compat = { version = "0.2.2", features = ["hyper"] }
+
+
+[[test]]
+name = "upgrade"
+path = "tests/upgrade.rs"
+required-features = ["upgrade"]
+
+[[test]]
+name = "split"
+path = "tests/split.rs"
+required-features = ["upgrade", "unstable-split"]
+
+[[test]]
+name = "concurrency"
+path = "tests/concurrency.rs"
+required-features = ["upgrade"]
 
 [[bench]]
 name = "unmask"
